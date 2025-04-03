@@ -2,47 +2,80 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Player : MonoBehaviour
+public class Player : Mover
 {
-    private BoxCollider2D boxCollider;
-    private Vector3 moveDelta;
-    private RaycastHit2D hit;
+    private SpriteRenderer spriteRenderer;
+    private bool isAlive = true;
 
-    private void Start()
+    protected override void Start()
     {
-       boxCollider = GetComponent<BoxCollider2D>();
+        base.Start();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+
+    }
+    protected override void Death()
+    {
+        isAlive = false;
+        GameManager.instance.deathMenuAnim.SetTrigger("show");
+        
+
+    }
+
+    
+
+    protected override void ReceiveDamage(Damage dmg)
+    {
+        if (!isAlive)
+            return;
+        base.ReceiveDamage(dmg);
+        GameManager.instance.OnHitpointChange();
     }
 
     private void FixedUpdate()
     {
-
-        // using the input manager to declare wasd or arrow keys
         float x = Input.GetAxisRaw("Horizontal");
         float y = Input.GetAxisRaw("Vertical");
-        //reset MoveDelta 
-        moveDelta = new Vector3(x,y,0);
 
-        // swap sprite direction , wether you're going right or left
-        if (moveDelta.x > 0)
-            transform.localScale = Vector3.one;
-        else if (moveDelta.x < 0)
-            transform.localScale = new Vector3(-1, 1, 1);
-        // make sure we can move in this direction by casting a box there first, f the box returns null, we're free to move
-        hit = Physics2D.BoxCast(transform.position, boxCollider.size, 0, new Vector2(0,moveDelta.y), Mathf.Abs(moveDelta.y * Time.deltaTime), LayerMask.GetMask("Actor", "Blocking"));
-        if(hit.collider == null)
-        {
-            // make player move also allows that computer speed doesnt matter so nomater cpu speed game runs the same speed
-            transform.Translate(0,moveDelta.y * Time.deltaTime, 0);
+        UpdateMotor(new Vector3(x, y, 0));
+    }
 
-        }
-        hit = Physics2D.BoxCast(transform.position, boxCollider.size, 0, new Vector2(moveDelta.x, 0), Mathf.Abs(moveDelta.x * Time.deltaTime), LayerMask.GetMask("Actor", "Blocking"));
-        if (hit.collider == null)
-        {
-            // make player move also allows that computer speed doesnt matter so nomater cpu speed game runs the same speed
-            transform.Translate(moveDelta.x * Time.deltaTime, 0, 0);
 
-        }
+    public void SwapSprite(int skinId)
+    {
+        spriteRenderer.sprite = GameManager.instance.playerSprite[skinId];
+    }
+    // improvement made through black box testing
+    public void OnLevelUp()
+    {
+        maxHitpoint++;
+        hitpoint = maxHitpoint;
+    }
+    public void SetLevel(int level)
+    {
+        for (int i = 0; i < level; i++)
+            OnLevelUp();
+    }
+
+    public void Heal(int healingAmount)
+    {
+        if (hitpoint == maxHitpoint)
+            return;
+        hitpoint += healingAmount;
+        if (hitpoint > maxHitpoint)
+            hitpoint = maxHitpoint;
+
+        GameManager.instance.ShowText("+" + healingAmount.ToString() + "hp", 25, Color.green, transform.position, Vector3.up * 30, 1.0f);
+        GameManager.instance.OnHitpointChange();
 
 
     }
+    public void Respawn()
+    {
+        Heal(maxHitpoint);
+        isAlive = true;
+        lastImmune = Time.time;
+    }
+
+
+
 }
